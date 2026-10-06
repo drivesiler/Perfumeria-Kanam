@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Facturación</title>
   
+  <!-- Configuración para App Movil y PC -->
   <meta name="theme-color" content="#2563eb">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Facturación">
   
+  <!-- Manifest dinámico (Crea el icono e instalador de la App) -->
   <script>
     const manifest = {
       "name": "Sistema de Facturación Local",
@@ -34,6 +36,7 @@
   </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -42,7 +45,7 @@
       top: 100%;
       left: 0;
       right: 0;
-      max-height: 200px;
+      max-height: 180px;
       overflow-y: auto;
       z-index: 50;
     }
@@ -59,28 +62,37 @@
 
   <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-4 sm:p-8 container-box">
     
-    <!-- Encabezado de la Factura -->
+    <!-- Header Section -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">FACTURA DE VENTA</h1>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">Sincronizado con Google Sheets</p>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">Emisión e impresión instantánea con inventario Excel</p>
       </div>
       
-      <div class="no-print bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center gap-3 text-xs sm:text-sm">
-        <div>
-          <span class="block text-slate-500 text-[11px] font-medium">Estado del Catálogo:</span>
-          <span id="status-badge" class="px-2.5 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">
-            Conectando a Google Sheets...
-          </span>
-        </div>
-        <div class="border-l border-slate-200 pl-3">
-          <span class="block text-slate-500 text-[11px] font-medium">Productos:</span>
-          <strong id="product-count" class="text-slate-800 font-bold">0</strong>
+      <!-- Excel File Uploader (No-Print) -->
+      <div class="no-print w-full sm:w-auto bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col gap-2">
+        <label class="text-xs font-semibold text-slate-700 flex items-center gap-2">
+          <span>📂 Cargar archivo de productos (.xlsx / .xls):</span>
+        </label>
+        <div class="flex items-center gap-2">
+          <input type="file" id="excel-input" accept=".xlsx, .xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" onchange="cargarArchivoExcel(event)">
         </div>
       </div>
     </div>
 
-    <!-- Datos del Cliente -->
+    <div class="no-print mb-6 bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+      <div class="flex items-center gap-2">
+        <span class="font-medium text-slate-600">Estado de Inventario:</span>
+        <span id="status-badge" class="px-2.5 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">
+          Esperando archivo de productos...
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-slate-500">Productos en memoria:</span>
+        <strong id="product-count" class="text-slate-800 font-bold bg-white px-2 py-0.5 rounded border border-slate-200">0</strong>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
       <div class="space-y-3">
         <div>
@@ -105,7 +117,6 @@
       </div>
     </div>
 
-    <!-- Tabla Principal de Facturación (Renglones) -->
     <div class="overflow-x-auto rounded-lg border border-slate-200 mb-6">
       <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
         <thead>
@@ -124,11 +135,14 @@
       </table>
     </div>
 
-    <!-- Cómputo de Totales -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-6">
       <div class="no-print w-full sm:w-1/2 text-xs text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
-        <p class="font-semibold text-blue-800 mb-1">💡 Búsqueda rápida:</p>
-        <p>Escribe en la casilla <strong>Descripción del Producto</strong> para buscar cualquier artículo cargado desde tu Google Sheets.</p>
+        <p class="font-semibold text-blue-800 mb-1">💡 Consejos de uso:</p>
+        <ul class="list-disc list-inside space-y-1">
+          <li>Sube tu archivo Excel con columnas: <code>codigo</code>, <code>nombre</code>, <code>categoria</code>, <code>precio</code>.</li>
+          <li>Escribe 1 o 2 letras en la celda de descripción para desplegar las coincidencias.</li>
+          <li>Usa el botón de imprimir para generar la factura lista para guardar como PDF.</li>
+        </ul>
       </div>
 
       <div class="w-full sm:w-80 bg-slate-50 p-4 rounded-lg border border-slate-200 ml-auto space-y-2 text-sm">
@@ -153,7 +167,6 @@
       </div>
     </div>
 
-    <!-- Botones de Acción -->
     <div class="no-print flex flex-wrap gap-3 pt-4 border-t border-slate-200">
       <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-5 rounded-lg shadow transition-all duration-150 flex items-center gap-2">
         <span>🖨️ Imprimir / Guardar en PDF</span>
@@ -163,11 +176,10 @@
       </button>
     </div>
 
-    <!-- Tabla de Vista Previa del Catálogo -->
     <div class="no-print mt-10 pt-6 border-t border-slate-200">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Vista previa del Inventario Conectado</h3>
-        <span class="text-xs text-slate-500">Muestra los primeros artículos de Google Sheets</span>
+        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Vista previa del Inventario Cargado</h3>
+        <span class="text-xs text-slate-500">Muestra los primeros 10 productos procesados</span>
       </div>
       <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-48">
         <table class="w-full text-xs text-left text-slate-600">
@@ -181,7 +193,7 @@
           </thead>
           <tbody id="inventory-preview">
             <tr>
-              <td colspan="4" class="p-4 text-center text-slate-400 italic">Cargando productos...</td>
+              <td colspan="4" class="p-4 text-center text-slate-400 italic">No se ha cargado ningún archivo Excel aún.</td>
             </tr>
           </tbody>
         </table>
@@ -191,14 +203,11 @@
   </div>
 
   <script>
-    const URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSKTcP_N9aIkOIaiExTjVRnpQXGysixPxcC8YKE9RPzu3M7iotVymaP8Y4NxBAbtg/pub?gid=341767151&single=true&output=csv";
-
     let productosBD = [];
 
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("fecha_factura").valueAsDate = new Date();
       generarRenglonesFactura();
-      cargarProductosDesdeGoogleSheets();
     });
 
     function generarRenglonesFactura() {
@@ -214,7 +223,7 @@
             <input type="text" id="cod_${i}" readonly class="w-full bg-slate-100 text-slate-600 p-1 rounded border-0 text-xs font-mono" placeholder="-">
           </td>
           <td class="p-2 relative">
-            <input type="text" id="desc_${i}" autocomplete="off" placeholder="Escriba para buscar..." 
+            <input type="text" id="desc_${i}" autocomplete="off" placeholder="Escriba 1 o 2 letras para buscar..." 
                    class="w-full p-1 border border-slate-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
                    oninput="filtrarProducto(this, ${i})">
             <div id="sug_${i}" class="suggestions-box hidden bg-white border border-blue-400 rounded-md shadow-xl text-xs"></div>
@@ -238,49 +247,47 @@
       }
     }
 
-    async function cargarProductosDesdeGoogleSheets() {
-      const badge = document.getElementById("status-badge");
-      try {
-        const response = await fetch(URL_GOOGLE_SHEETS);
-        if (!response.ok) throw new Error("Respuesta de red no ok");
-        const csvText = await response.text();
-        
-        productosBD = procesarCSVGoogleSheets(csvText);
+    function cargarArchivoExcel(event) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-        document.getElementById("product-count").innerText = productosBD.length;
-        badge.innerText = "¡Conectado con Google Sheets!";
-        badge.className = "px-2.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800";
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rawData = XLSX.utils.sheet_to_json(worksheet);
 
-        actualizarTablaVistaPrevia();
-      } catch (error) {
-        console.error("Error al cargar Google Sheets:", error);
-        badge.innerText = "Error al conectar con Google Sheets";
-        badge.className = "px-2.5 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-800";
-      }
-    }
+          productosBD = rawData.map(item => {
+            const codigo = item.codigo || item.Codigo || item.CODIGO || item.código || item.Código || "";
+            const nombre = item.nombre || item.Nombre || item.NOMBRE || item.descripcion || item.Descripcion || item.DESCRIPCION || "";
+            const categoria = item.categoria || item.Categoria || item.CATEGORIA || item.categoría || "";
+            const precioRaw = item.precio || item.Precio || item.PRECIO || 0;
 
-    function procesarCSVGoogleSheets(text) {
-      const filas = text.split(/\r?\n/).filter(f => f.trim() !== "");
-      if (filas.length < 2) return [];
+            return {
+              codigo: String(codigo).trim(),
+              nombre: String(nombre).trim(),
+              categoria: String(categoria).trim(),
+              precio: parseFloat(precioRaw) || 0
+            };
+          }).filter(p => p.nombre !== "");
 
-      const delimitador = text.includes("\t") ? "\t" : ",";
-      
-      return filas.slice(1).map(fila => {
-        const columnas = fila.split(delimitador).map(c => c.trim().replace(/^"|"$/g, ''));
-        if (columnas.length < 2) return null;
+          document.getElementById("product-count").innerText = productosBD.length;
+          const badge = document.getElementById("status-badge");
+          badge.innerText = "¡Excel cargado con éxito!";
+          badge.className = "px-2.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800";
 
-        const codigo = columnas[0] || "";
-        const nombre = columnas[1] || "";
-        const categoria = columnas[2] || "";
-        let precioLimpio = (columnas[3] || "0").replace("$", "").replace(",", ".").trim();
+          actualizarTablaVistaPrevia();
 
-        return {
-          codigo: codigo,
-          nombre: nombre,
-          categoria: categoria,
-          precio: parseFloat(precioLimpio) || 0
-        };
-      }).filter(item => item !== null && item.nombre !== "");
+        } catch (error) {
+          console.error(error);
+          alert("Ocurrió un error al procesar el archivo Excel.");
+        }
+      };
+
+      reader.readAsArrayBuffer(file);
     }
 
     function actualizarTablaVistaPrevia() {
@@ -288,11 +295,12 @@
       container.innerHTML = "";
 
       if (productosBD.length === 0) {
-        container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No hay productos disponibles en la hoja.</td></tr>';
+        container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No hay productos.</td></tr>';
         return;
       }
 
-      productosBD.slice(0, 15).forEach(p => {
+      const previewItems = productosBD.slice(0, 10);
+      previewItems.forEach(p => {
         const tr = document.createElement("tr");
         tr.className = "border-b border-slate-100 hover:bg-slate-50";
         tr.innerHTML = `
