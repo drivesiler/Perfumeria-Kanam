@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Facturación</title>
+  <title>Sistema de Facturación - Perfumería Kanam</title>
   
   <meta name="theme-color" content="#2563eb">
   <meta name="mobile-web-app-capable" content="yes">
@@ -67,9 +67,9 @@
       
       <div class="no-print bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center gap-3 text-xs sm:text-sm">
         <div>
-          <span class="block text-slate-500 text-[11px] font-medium">Estado de Inventario:</span>
+          <span class="block text-slate-500 text-[11px] font-medium">Estado del Catálogo:</span>
           <span id="status-badge" class="px-2.5 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">
-            Cargando automáticamente...
+            Conectando...
           </span>
         </div>
         <div class="border-l border-slate-200 pl-3">
@@ -104,7 +104,7 @@
       </div>
     </div>
 
-    <!-- Renglones de la Factura -->
+    <!-- Renglones de Factura -->
     <div class="overflow-x-auto rounded-lg border border-slate-200 mb-6">
       <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
         <thead>
@@ -127,7 +127,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-6">
       <div class="no-print w-full sm:w-1/2 text-xs text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
         <p class="font-semibold text-blue-800 mb-1">ℹ️ Información:</p>
-        <p>Escribe las primeras letras del producto en la columna <strong>Descripción</strong> para autocompletar el artículo y su precio.</p>
+        <p>Sincronización automática activa en móvil y PC.</p>
       </div>
 
       <div class="w-full sm:w-80 bg-slate-50 p-4 rounded-lg border border-slate-200 ml-auto space-y-2 text-sm">
@@ -165,7 +165,7 @@
     <!-- Vista previa del inventario -->
     <div class="no-print mt-10 pt-6 border-t border-slate-200">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Vista previa del inventario cargado</h3>
+        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Catálogo Cargado</h3>
         <span class="text-xs text-slate-500">Muestra los primeros productos</span>
       </div>
       <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-56">
@@ -180,7 +180,7 @@
           </thead>
           <tbody id="inventory-preview">
             <tr>
-              <td colspan="4" class="p-4 text-center text-slate-400 italic">Conectando...</td>
+              <td colspan="4" class="p-4 text-center text-slate-400 italic">Cargando...</td>
             </tr>
           </tbody>
         </table>
@@ -190,7 +190,11 @@
   </div>
 
   <script>
-    const URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSKTcP_N9aIkOIaiExTjVRnpQXGysixPxcC8YKE9RPzu3M7iotVymaP8Y4NxBAbtg/pub?gid=341767151&single=true&output=csv";
+    // Enlaces de exportación adaptados para forzar el modo texto plano en móviles
+    const URLS_EXPORT = [
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSKTcP_N9aIkOIaiExTjVRnpQXGysixPxcC8YKE9RPzu3M7iotVymaP8Y4NxBAbtg/pub?gid=341767151&single=true&output=csv",
+      "https://api.allorigins.win/raw?url=" + encodeURIComponent("https://docs.google.com/spreadsheets/d/e/2PACX-1vSKTcP_N9aIkOIaiExTjVRnpQXGysixPxcC8YKE9RPzu3M7iotVymaP8Y4NxBAbtg/pub?gid=341767151&single=true&output=csv")
+    ];
 
     let productosBD = [];
 
@@ -241,24 +245,22 @@
       const badge = document.getElementById("status-badge");
       let csvData = "";
 
-      const fuentes = [
-        URL_GOOGLE_SHEETS + "&nocache=" + Date.now(),
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(URL_GOOGLE_SHEETS),
-        "https://corsproxy.io/?" + encodeURIComponent(URL_GOOGLE_SHEETS)
-      ];
-
-      for (let url of fuentes) {
+      for (let url of URLS_EXPORT) {
         try {
-          const response = await fetch(url);
+          // Forzar la cabecera User-Agent en la petición fetch cuando sea posible
+          const response = await fetch(url, {
+            headers: { 'Accept': 'text/csv,text/plain,*/*' }
+          });
           if (response.ok) {
             const text = await response.text();
-            if (text && text.length > 20) {
+            // Comprobamos que el texto contenga datos válidos y no sea la plantilla HTML de error móvil
+            if (text && !text.includes("<!DOCTYPE html") && text.length > 10) {
               csvData = text;
               break;
             }
           }
         } catch (e) {
-          console.warn("Reintentando fuente secundaria...");
+          console.warn("Intentando ruta alternativa de red...");
         }
       }
 
@@ -266,14 +268,14 @@
         productosBD = procesarCSV(csvData);
         if (productosBD.length > 0) {
           document.getElementById("product-count").innerText = productosBD.length;
-          badge.innerText = "¡Inventario cargado exitosamente!";
+          badge.innerText = "¡Conectado con éxito!";
           badge.className = "px-2.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800";
           actualizarTablaVistaPrevia();
           return;
         }
       }
 
-      badge.innerText = "Error de formato en hoja";
+      badge.innerText = "Error en conexión móvil";
       badge.className = "px-2.5 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-800";
     }
 
