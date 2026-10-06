@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Facturación</title>
   
-  <!-- Configuración para App Móvil y PC -->
   <meta name="theme-color" content="#2563eb">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Facturación">
   
-  <!-- Manifest dinámico (Crea el icono e instalador de la App) -->
   <script>
     const manifest = {
       "name": "Sistema de Facturación Local",
@@ -61,19 +59,18 @@
 
   <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-4 sm:p-8 container-box">
     
-    <!-- Header Section -->
+    <!-- Encabezado de la Factura -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-4 mb-6 gap-4">
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">FACTURA DE VENTA</h1>
-        <p class="text-xs sm:text-sm text-slate-500 mt-1">Sincronizado en tiempo real con Google Sheets</p>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1">Sincronizado con Google Sheets</p>
       </div>
       
-      <!-- Estado de la sincronización -->
       <div class="no-print bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center gap-3 text-xs sm:text-sm">
         <div>
           <span class="block text-slate-500 text-[11px] font-medium">Estado del Catálogo:</span>
           <span id="status-badge" class="px-2.5 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">
-            Cargando Google Sheets...
+            Conectando a Google Sheets...
           </span>
         </div>
         <div class="border-l border-slate-200 pl-3">
@@ -83,7 +80,7 @@
       </div>
     </div>
 
-    <!-- Datos del Cliente y Factura -->
+    <!-- Datos del Cliente -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
       <div class="space-y-3">
         <div>
@@ -108,7 +105,7 @@
       </div>
     </div>
 
-    <!-- Tabla de Productos -->
+    <!-- Tabla Principal de Facturación (Renglones) -->
     <div class="overflow-x-auto rounded-lg border border-slate-200 mb-6">
       <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[700px]">
         <thead>
@@ -127,11 +124,11 @@
       </table>
     </div>
 
-    <!-- Totales -->
+    <!-- Cómputo de Totales -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-6">
       <div class="no-print w-full sm:w-1/2 text-xs text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100">
-        <p class="font-semibold text-blue-800 mb-1">💡 Conexión Automática:</p>
-        <p>Los productos se cargan automáticamente desde tu Google Sheets. Si cambias un precio o agregas un producto en la hoja de cálculo, la aplicación se actualizará al instante para ti y para tus clientes.</p>
+        <p class="font-semibold text-blue-800 mb-1">💡 Búsqueda rápida:</p>
+        <p>Escribe en la casilla <strong>Descripción del Producto</strong> para buscar cualquier artículo cargado desde tu Google Sheets.</p>
       </div>
 
       <div class="w-full sm:w-80 bg-slate-50 p-4 rounded-lg border border-slate-200 ml-auto space-y-2 text-sm">
@@ -166,11 +163,11 @@
       </button>
     </div>
 
-    <!-- Vista previa de productos -->
+    <!-- Tabla de Vista Previa del Catálogo -->
     <div class="no-print mt-10 pt-6 border-t border-slate-200">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Vista previa del Inventario Conectado</h3>
-        <span class="text-xs text-slate-500">Muestra los primeros 10 productos de Google Sheets</span>
+        <span class="text-xs text-slate-500">Muestra los primeros artículos de Google Sheets</span>
       </div>
       <div class="overflow-x-auto rounded-lg border border-slate-200 max-h-48">
         <table class="w-full text-xs text-left text-slate-600">
@@ -184,7 +181,7 @@
           </thead>
           <tbody id="inventory-preview">
             <tr>
-              <td colspan="4" class="p-4 text-center text-slate-400 italic">Cargando datos desde Google Sheets...</td>
+              <td colspan="4" class="p-4 text-center text-slate-400 italic">Cargando productos...</td>
             </tr>
           </tbody>
         </table>
@@ -194,7 +191,6 @@
   </div>
 
   <script>
-    // Tu enlace directo de Google Sheets CSV
     const URL_GOOGLE_SHEETS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSKTcP_N9aIkOIaiExTjVRnpQXGysixPxcC8YKE9RPzu3M7iotVymaP8Y4NxBAbtg/pub?gid=341767151&single=true&output=csv";
 
     let productosBD = [];
@@ -246,9 +242,10 @@
       const badge = document.getElementById("status-badge");
       try {
         const response = await fetch(URL_GOOGLE_SHEETS);
+        if (!response.ok) throw new Error("Respuesta de red no ok");
         const csvText = await response.text();
         
-        productosBD = parseCSV(csvText);
+        productosBD = procesarCSVGoogleSheets(csvText);
 
         document.getElementById("product-count").innerText = productosBD.length;
         badge.innerText = "¡Conectado con Google Sheets!";
@@ -262,32 +259,28 @@
       }
     }
 
-    function parseCSV(text) {
-      const lines = text.split("\n").filter(line => line.trim() !== "");
-      if (lines.length < 2) return [];
+    function procesarCSVGoogleSheets(text) {
+      const filas = text.split(/\r?\n/).filter(f => f.trim() !== "");
+      if (filas.length < 2) return [];
 
-      const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ''));
+      const delimitador = text.includes("\t") ? "\t" : ",";
       
-      const idxCod = headers.findIndex(h => h.includes("cod") || h.includes("código") || h.includes("id"));
-      const idxNom = headers.findIndex(h => h.includes("nom") || h.includes("descrip") || h.includes("producto"));
-      const idxCat = headers.findIndex(h => h.includes("cat"));
-      const idxPre = headers.findIndex(h => h.includes("pre") || h.includes("pvc") || h.includes("costo"));
+      return filas.slice(1).map(fila => {
+        const columnas = fila.split(delimitador).map(c => c.trim().replace(/^"|"$/g, ''));
+        if (columnas.length < 2) return null;
 
-      return lines.slice(1).map(line => {
-        const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"\vert{}"$/g, ''));
-        
-        const codigo = idxCod !== -1 ? cols[idxCod] || "" : cols[0] || "";
-        const nombre = idxNom !== -1 ? cols[idxNom] || "" : cols[1] || "";
-        const categoria = idxCat !== -1 ? cols[idxCat] || "" : "";
-        const precioRaw = idxPre !== -1 ? cols[idxPre] || "0" : "0";
+        const codigo = columnas[0] || "";
+        const nombre = columnas[1] || "";
+        const categoria = columnas[2] || "";
+        let precioLimpio = (columnas[3] || "0").replace("$", "").replace(",", ".").trim();
 
         return {
           codigo: codigo,
           nombre: nombre,
           categoria: categoria,
-          precio: parseFloat(precioRaw.replace("$", "").replace(",", ".")) || 0
+          precio: parseFloat(precioLimpio) || 0
         };
-      }).filter(p => p.nombre !== "");
+      }).filter(item => item !== null && item.nombre !== "");
     }
 
     function actualizarTablaVistaPrevia() {
@@ -295,11 +288,11 @@
       container.innerHTML = "";
 
       if (productosBD.length === 0) {
-        container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No hay productos disponibles.</td></tr>';
+        container.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">No hay productos disponibles en la hoja.</td></tr>';
         return;
       }
 
-      productosBD.slice(0, 10).forEach(p => {
+      productosBD.slice(0, 15).forEach(p => {
         const tr = document.createElement("tr");
         tr.className = "border-b border-slate-100 hover:bg-slate-50";
         tr.innerHTML = `
@@ -334,4 +327,71 @@
 
       coincidencias.slice(0, 10).forEach(prod => {
         const item = document.createElement("div");
-        item.className = "p-2 hover:
+        item.className = "p-2 hover:bg-blue-600 hover:text-white cursor-pointer border-b border-slate-100 last:border-none transition-colors flex justify-between items-center";
+        item.innerHTML = `
+          <span><strong>${prod.nombre}</strong> ${prod.codigo ? `<span class="opacity-75 font-mono">(${prod.codigo})</span>` : ''}</span>
+          <span class="font-bold ml-2">$${prod.precio.toFixed(2)}</span>
+        `;
+        
+        item.onclick = function() {
+          document.getElementById(`desc_${rowId}`).value = prod.nombre;
+          document.getElementById(`cod_${rowId}`).value = prod.codigo;
+          document.getElementById(`cat_${rowId}`).value = prod.categoria;
+          document.getElementById(`precio_${rowId}`).value = prod.precio.toFixed(2);
+          sugBox.classList.add("hidden");
+          calcularFila(rowId);
+        };
+
+        sugBox.appendChild(item);
+      });
+
+      sugBox.classList.remove("hidden");
+    }
+
+    document.addEventListener("click", function(e) {
+      if (!e.target.closest('.relative')) {
+        document.querySelectorAll(".suggestions-box").forEach(box => box.classList.add("hidden"));
+      }
+    });
+
+    function calcularFila(rowId) {
+      const cant = parseFloat(document.getElementById(`cant_${rowId}`).value) || 0;
+      const precio = parseFloat(document.getElementById(`precio_${rowId}`).value) || 0;
+      const total = cant * precio;
+      document.getElementById(`total_${rowId}`).innerText = "$" + total.toFixed(2);
+      calcularTotales();
+    }
+
+    function calcularTotales() {
+      let subtotal = 0;
+      for (let i = 1; i <= 25; i++) {
+        const valText = document.getElementById(`total_${i}`).innerText.replace("$", "");
+        const val = parseFloat(valText) || 0;
+        subtotal += val;
+      }
+
+      const taxRate = parseFloat(document.getElementById("tax-rate").value) || 0;
+      const taxAmount = subtotal * (taxRate / 100);
+      const totalGeneral = subtotal + taxAmount;
+
+      document.getElementById("lbl-subtotal").innerText = "$" + subtotal.toFixed(2);
+      document.getElementById("lbl-tax").innerText = "$" + taxAmount.toFixed(2);
+      document.getElementById("lbl-total").innerText = "$" + totalGeneral.toFixed(2);
+    }
+
+    function limpiarFactura() {
+      for (let i = 1; i <= 25; i++) {
+        document.getElementById(`cod_${i}`).value = "";
+        document.getElementById(`desc_${i}`).value = "";
+        document.getElementById(`cat_${i}`).value = "";
+        document.getElementById(`cant_${i}`).value = "1";
+        document.getElementById(`precio_${i}`).value = "0.00";
+        document.getElementById(`total_${i}`).innerText = "$0.00";
+      }
+      document.getElementById("cliente").value = "";
+      document.getElementById("rif_cliente").value = "";
+      calcularTotales();
+    }
+  </script>
+</body>
+</html>
